@@ -89,7 +89,8 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     // Iterate the counter
     this.counter += 1
 
-    // Grab our payload
+    // Grab our payload, hold the primative in this stack frame so when
+    // we check it later it doesn't change underneath us.
     const payload = this.counter
 
     // Produce a wait for reply handler
