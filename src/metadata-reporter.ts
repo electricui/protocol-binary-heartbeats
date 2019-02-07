@@ -1,5 +1,5 @@
 import { ConnectionMetadataReporter, Message } from '@electricui/core'
-import { MESSAGEIDS } from '@electricui/protocol-binary-constants'
+import { MESSAGEIDS, TYPES } from '@electricui/protocol-binary-constants'
 
 import { average, standardDeviation } from './utils'
 
@@ -113,6 +113,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
     const message = new Message(this.heartbeatMessageID, payload)
     message.metadata.internal = true
+    message.metadata.type = TYPES.UINT8
     message.metadata.query = true
 
     const cancelHandler = () => {
