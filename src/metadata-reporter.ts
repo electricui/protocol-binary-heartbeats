@@ -25,7 +25,7 @@ class HeartbeatMeasurement {
 }
 
 export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataReporter {
-  metadataKeys = ['latency', 'packet-loss', 'jitter']
+  metadataKeys = ['latency', 'packetLoss', 'jitter']
   intervalDelay: number
   timeout: number
   maxHeartbeats: number
@@ -236,11 +236,11 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
     dHeartbeats(`Heartbeats sent: ${heartbeatsSent.length}`)
     dHeartbeats(`Heartbeat latency: ${latency}`)
-    dHeartbeats(`Heartbeat packet-loss: ${packetLoss}`)
+    dHeartbeats(`Heartbeat packetLoss: ${packetLoss}`)
     dHeartbeats(`Heartbeat jitter: ${jitter}`)
 
     connection.reportConnectionMetadata('latency', latency)
-    connection.reportConnectionMetadata('packet-loss', packetLoss)
+    connection.reportConnectionMetadata('packetLoss', packetLoss)
     connection.reportConnectionMetadata('jitter', jitter)
   }
 }
