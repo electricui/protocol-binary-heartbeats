@@ -1,6 +1,6 @@
 {
   "name": "@electricui/protocol-binary-heartbeats",
-  "version": "0.4.17",
+  "version": "0.4.20",
   "description": "ElectricUI Binary Protocol Heartbeat Reporter",
   "electricui-dev": true,
   "author": "Electric UI <support@electricui.com> (https://electricui.com)",
@@ -12,8 +12,8 @@
     "manifest.json"
   ],
   "dependencies": {
-    "@electricui/core": "^0.4.17",
-    "@electricui/protocol-binary-constants": "^0.4.6",
+    "@electricui/core": "^0.4.20",
+    "@electricui/protocol-binary-constants": "^0.4.20",
     "better-queue": "^3.8.10",
     "bluebird": "^3.5.3",
     "debug": "^4.1.1",
