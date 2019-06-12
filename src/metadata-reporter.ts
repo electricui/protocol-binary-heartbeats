@@ -25,7 +25,7 @@ class HeartbeatMeasurement {
 }
 
 export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataReporter {
-  metadataKeys = ['latency', 'packetLoss', 'jitter']
+  metadataKeys = ['latency', 'packetLoss', 'jitter', 'consecutiveHeartbeats']
   intervalDelay: number
   timeout: number
   maxHeartbeats: number
@@ -116,11 +116,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     message.metadata.type = TYPES.UINT8
     message.metadata.query = true
 
-    const cancelHandler = () => {
-      cancelWaitForReply()
-    }
-
-    const heartbeat = new HeartbeatMeasurement(cancelHandler)
+    const heartbeat = new HeartbeatMeasurement(cancelWaitForReply)
 
     // Add this heartbeat to the list
     this.heartbeats.push(heartbeat)
@@ -202,6 +198,36 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
       heartbeat => heartbeat.failed,
     )
 
+    /**
+     * Consecutive heartbeat count
+     * Below are a series of examples and the intended result
+     *
+     * [+ + + +] = 4
+     * [+ + + -] = 0
+     * [- - - -] = 0
+     * [- + + +] = 3
+     * [- - + +] = 2
+     * [+ + - +] = 0 // one heartbeat is not a consecutive heartbeat
+     *
+     */
+    let consecutiveSucessess = heartbeatsSent.reduce(
+      (accumulator, heartbeat) => {
+        // if this heartbeat succeeded, then we add 1 to the accumulator
+        if (heartbeat.ackTime !== null && !heartbeat.failed) {
+          return accumulator + 1
+        }
+
+        // in any other case, we reset the counter to 0
+        return 0
+      },
+      0,
+    )
+
+    // If there is only one heartbeat that succeeded, there have been 0 _consecutive_ heartbeats
+    if (consecutiveSucessess === 1) {
+      consecutiveSucessess = 0
+    }
+
     if (heartbeatsSucceeded.length === 0) {
       // No heartbeats have succeeded yet, so nothing to report on yet.
 
@@ -238,9 +264,11 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     dHeartbeats(`Heartbeat latency: ${latency}`)
     dHeartbeats(`Heartbeat packetLoss: ${packetLoss}`)
     dHeartbeats(`Heartbeat jitter: ${jitter}`)
+    dHeartbeats(`Consecutive heartbeats: ${consecutiveSucessess}`)
 
     connection.reportConnectionMetadata('latency', latency)
     connection.reportConnectionMetadata('packetLoss', packetLoss)
     connection.reportConnectionMetadata('jitter', jitter)
+    connection.reportConnectionMetadata('consecutiveHeartbeats', consecutiveSucessess) // prettier-ignore
   }
 }
