@@ -1,6 +1,5 @@
 import { ConnectionMetadataReporter, Message } from '@electricui/core'
 import { MESSAGEIDS, TYPES } from '@electricui/protocol-binary-constants'
-
 import { average, standardDeviation } from './utils'
 
 const dHeartbeats = require('debug')('electricui-protocol-binary:heartbeats')
