@@ -5,11 +5,38 @@ import { average, standardDeviation } from './utils'
 const dHeartbeats = require('debug')('electricui-protocol-binary:heartbeats')
 
 interface HeartbeatConnectionMetadataReporterOptions {
+  /**
+   * What interval should the device be polled at for a heartbeat response, by default 500ms.
+   */
   interval?: number
+  /**
+   * How long to wait before the heartbeat is considered lost, by default 2000ms
+   */
   timeout?: number
+  /**
+   * How many heartbeats to keep in memory at a time for metadata statistics, by default 20
+   */
   maxHeartbeats?: number
+  /**
+   * If true, the heartbeat time is measured from being sent to the OS buffer.
+   * If false, the heartbeat time is measured from the flush event provided by the OS.
+   *
+   * By default it is measured from the flush
+   */
   measurePipeline?: boolean
+  /**
+   * What messageID is the heartbeat on. By default the binary protocol messageID.
+   */
   heartbeatMessageID?: string
+  /**
+   * The exponential backoff startup request sequence. By default a packet is sent at each of these intervals.
+   *
+   * [0, 10, 100, 1000]
+   *
+   * Any success during this period releases the connection into a 'CONNECTED' state.
+   * Failures are ignored until the last packet times out.
+   */
+  exponentialBackoffStartup?: number[]
 }
 
 class HeartbeatMeasurement {
@@ -33,6 +60,9 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
   interval: NodeJS.Timer | null = null
   heartbeats: Array<HeartbeatMeasurement> = []
   measurePipeline: boolean
+  exponentialBackoffStartup: number[]
+  inStartup = true
+  startupAttemptIndex = 0
 
   constructor(options: HeartbeatConnectionMetadataReporterOptions) {
     super()
@@ -47,6 +77,20 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     this.report = this.report.bind(this)
     this.ping = this.ping.bind(this)
     this.getTime = this.getTime.bind(this)
+
+    if (this.intervalDelay < 5) {
+      throw new Error(
+        "HeartbeatConnectionMetadataReporter intervalDelay can't be below 5ms. (To avoid link saturation, that's not to say that 6ms is fine)",
+      )
+    }
+
+    // Build our exponential backoff profile
+    this.exponentialBackoffStartup = options.exponentialBackoffStartup ?? [
+      0,
+      10,
+      100,
+      1000,
+    ]
   }
 
   /**
@@ -57,16 +101,98 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     return hr[0] * 1000 + hr[1] / 1000000
   }
 
+  startupProcedureTimeoutResolution: (() => void) | null = null
+  startupProcedureTimeoutHandler: NodeJS.Timeout | null = null
+
+  generateCancellableStartupTimeout = () => {
+    return new Promise((resolve, reject) => {
+      this.startupProcedureTimeoutResolution = resolve
+      this.startupProcedureTimeoutHandler = setTimeout(() => {
+        this.leaveStartupMode(false)
+      }, this.timeout)
+    })
+  }
+
+  leaveStartupMode = (success: boolean) => {
+    dHeartbeats(
+      `${
+        success ? 'successfully' : 'unsuccessfully'
+      } leaving startup mode before the ${this.startupAttemptIndex}th attempt.`,
+    )
+
+    // leave startup
+    this.inStartup = false
+    // if we have a timeout handler, cancel it
+    if (this.startupProcedureTimeoutHandler) {
+      clearTimeout(this.startupProcedureTimeoutHandler)
+    }
+    // if the promise is active, resolve it
+    if (this.startupProcedureTimeoutResolution) {
+      this.startupProcedureTimeoutResolution()
+    }
+
+    // clear all heartbeat records except for the last one.
+    this.heartbeats = this.heartbeats.slice(-1)
+  }
+
   async onConnect() {
-    // setup what we have to, do at least one ping to figure out
+    const usageRequests = Array.from(
+      this.connectionInterface?.connection?.getUsageRequests() ?? [],
+    )
+    dHeartbeats(
+      'Starting heartbeats with usageRequests:',
+      usageRequests.join(', '),
+      '',
+    )
+
+    // If we're iterating through the startup procedure
+    while (
+      this.startupAttemptIndex <
+      this.exponentialBackoffStartup.length - 1
+    ) {
+      // check if we're in startup mode still
+      if (this.inStartup) {
+        const waitTime = this.exponentialBackoffStartup[
+          this.startupAttemptIndex
+        ]
+
+        dHeartbeats(
+          `Waiting ${waitTime}ms for heartbeat ping #${this.startupAttemptIndex}`,
+        )
+
+        // block for the requisite time
+        await new Promise((resolve, reject) =>
+          setTimeout(
+            resolve,
+            this.exponentialBackoffStartup[this.startupAttemptIndex],
+          ),
+        )
+
+        dHeartbeats(
+          `Sending startup heartbeat ping #${this.startupAttemptIndex}`,
+        )
+
+        // send off a ping
+        this.ping()
+
+        this.startupAttemptIndex++
+      }
+    }
+
+    // If we've exhausted them
+    if (this.inStartup) {
+      dHeartbeats(
+        `Exhausted startup window after ${this.startupAttemptIndex} attempts, waiting for the last heartbeat to timeout`,
+      )
+
+      // Wait for us to leave startup, either by timeout failure or by success
+      await this.generateCancellableStartupTimeout()
+    }
+
+    // We have left startup
+
+    // Setup our regular interval
     this.interval = setInterval(this.tick, this.intervalDelay)
-
-    dHeartbeats('Starting heartbeats')
-
-    // Send a single heartbeat and wait for it to return.
-    await this.ping()
-
-    dHeartbeats('First heartbeat complete')
 
     // Process the metadata, send the first latency reading
     this.report()
@@ -169,9 +295,14 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
         // Add the received time to the measurement
         heartbeat.ackTime = ackTime
+
+        // We're no longer in startup if we received a packet back
+        if (this.inStartup) {
+          this.leaveStartupMode(true)
+        }
       })
       .catch(err => {
-        // On failure, mark this as failed
+        // Heartbeat failure
         heartbeat.failed = true
 
         dHeartbeats(`Timing out heartbeat #${payload}`)
