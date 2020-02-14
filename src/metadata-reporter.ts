@@ -180,8 +180,6 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
       this.startupAttemptIndex++
     }
 
-    console.log('exited while loop')
-
     // If we've exhausted them
     if (this.inStartup) {
       dHeartbeats(
