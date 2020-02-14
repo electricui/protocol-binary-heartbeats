@@ -36,7 +36,7 @@ interface HeartbeatConnectionMetadataReporterOptions {
    * Any success during this period releases the connection into a 'CONNECTED' state.
    * Failures are ignored until the last packet times out.
    */
-  exponentialBackoffStartup?: number[]
+  startupSequence?: number[]
 }
 
 class HeartbeatMeasurement {
@@ -60,7 +60,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
   interval: NodeJS.Timer | null = null
   heartbeats: Array<HeartbeatMeasurement> = []
   measurePipeline: boolean
-  exponentialBackoffStartup: number[]
+  startupSequence: number[]
   inStartup = true
   startupAttemptIndex = 0
 
@@ -85,12 +85,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     }
 
     // Build our exponential backoff profile
-    this.exponentialBackoffStartup = options.exponentialBackoffStartup ?? [
-      0,
-      10,
-      100,
-      1000,
-    ]
+    this.startupSequence = options.startupSequence ?? [0, 1000]
   }
 
   /**
@@ -135,6 +130,10 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     this.heartbeats = this.heartbeats.slice(-1)
   }
 
+  startupAttemptToHeartbeatNumber = (startupAttemptIndex: number) => {
+    return startupAttemptIndex + 1
+  }
+
   async onConnect() {
     const usageRequests = Array.from(
       this.connectionInterface?.connection?.getUsageRequests() ?? [],
@@ -142,42 +141,46 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     dHeartbeats(
       'Starting heartbeats with usageRequests:',
       usageRequests.join(', '),
-      '',
     )
 
     // If we're iterating through the startup procedure
+    // While LESS THAN the COUNT => while the ID will be valid
     while (
-      this.startupAttemptIndex <
-      this.exponentialBackoffStartup.length - 1
+      this.startupAttemptIndex < this.startupSequence.length &&
+      this.inStartup
     ) {
-      // check if we're in startup mode still
-      if (this.inStartup) {
-        const waitTime = this.exponentialBackoffStartup[
-          this.startupAttemptIndex
-        ]
+      const waitTime = this.startupSequence[this.startupAttemptIndex]
 
-        dHeartbeats(
-          `Waiting ${waitTime}ms for heartbeat ping #${this.startupAttemptIndex}`,
-        )
+      dHeartbeats(
+        `Waiting ${waitTime}ms for heartbeat ping #${this.startupAttemptToHeartbeatNumber(
+          this.startupAttemptIndex,
+        )}`,
+      )
 
-        // block for the requisite time
-        await new Promise((resolve, reject) =>
-          setTimeout(
-            resolve,
-            this.exponentialBackoffStartup[this.startupAttemptIndex],
-          ),
-        )
+      // block for the requisite time
+      await new Promise((resolve, reject) =>
+        setTimeout(resolve, this.startupSequence[this.startupAttemptIndex]),
+      )
 
-        dHeartbeats(
-          `Sending startup heartbeat ping #${this.startupAttemptIndex}`,
-        )
-
-        // send off a ping
-        this.ping()
-
-        this.startupAttemptIndex++
+      // If we've left startup mode by now, just break
+      if (!this.inStartup) {
+        break
       }
+
+      dHeartbeats(
+        `Sending startup heartbeat ping #${this.startupAttemptToHeartbeatNumber(
+          this.startupAttemptIndex,
+        )} of ${this.startupSequence.length}`,
+      )
+
+      // send off a ping
+      this.ping()
+
+      // Iterate the index
+      this.startupAttemptIndex++
     }
+
+    console.log('exited while loop')
 
     // If we've exhausted them
     if (this.inStartup) {
@@ -187,6 +190,8 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
       // Wait for us to leave startup, either by timeout failure or by success
       await this.generateCancellableStartupTimeout()
+    } else {
+      dHeartbeats(`Left startup window while loop`)
     }
 
     // We have left startup
@@ -194,8 +199,12 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     // Setup our regular interval
     this.interval = setInterval(this.tick, this.intervalDelay)
 
+    dHeartbeats(`Sending first heartbeat report`)
+
     // Process the metadata, send the first latency reading
     this.report()
+
+    dHeartbeats(`Connection is probably in CONNECTED state`)
   }
 
   async onDisconnect() {
