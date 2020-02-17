@@ -135,13 +135,19 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
   }
 
   async onConnect() {
-    const usageRequests = Array.from(
-      this.connectionInterface?.connection?.getUsageRequests() ?? [],
-    )
-    dHeartbeats(
-      'Starting heartbeats with usageRequests:',
-      usageRequests.join(', '),
-    )
+    // Reset all information
+    this.inStartup = true
+    this.startupAttemptIndex = 0
+
+    // Clear any heartbeats in the buffer
+    this.heartbeats = []
+
+    // Stop interval based reporting
+    if (this.interval) {
+      clearInterval(this.interval)
+    }
+
+    dHeartbeats('Starting heartbeats')
 
     // If we're iterating through the startup procedure
     // While LESS THAN the COUNT => while the ID will be valid
