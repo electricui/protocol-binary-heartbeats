@@ -221,6 +221,14 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     this.heartbeats = []
   }
 
+  tick() {
+    // Send new heartbeats
+    this.ping()
+
+    // Update the reporting
+    this.report()
+  }
+
   ping() {
     const connection = this.connectionInterface!.connection!
 
@@ -232,7 +240,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
       this.counter = 1
     }
 
-    // Grab our payload, hold the primative in this stack frame so when
+    // Grab our payload, hold the primitive in this stack frame so when
     // we check it later it doesn't change underneath us.
     const payload = this.counter
 
@@ -321,14 +329,6 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
         dHeartbeats(`Timing out heartbeat #${payload}`)
       })
-  }
-
-  tick() {
-    // Send new heartbeats
-    this.ping()
-
-    // Update the reporting
-    this.report()
   }
 
   report() {
