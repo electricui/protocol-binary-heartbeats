@@ -153,14 +153,13 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
     return Promise.race([
       this.startupProcedureTimeoutPromise.then(() => {
-        dHeartbeats(
-          `Bailing out of wait loop early`,
-        )
+        dHeartbeats(`Bailing out of wait loop early`)
         if (timeout) {
           clearTimeout(timeout)
         }
-      }), 
-      timeoutPromise])
+      }),
+      timeoutPromise,
+    ])
   }
 
   async onConnect() {
@@ -247,7 +246,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     this.report()
 
     dHeartbeats(`Connection is probably in CONNECTED state`)
-    measure("heartbeat-startup")
+    measure('heartbeat-startup')
   }
 
   async onDisconnect() {
@@ -287,14 +286,18 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     const {
       promise: waitForReply,
       cancel: cancelWaitForReply,
-    } = connection.waitForReply((replyMessage: Message) => {
-      // wait for a reply with the same messageID and payload
-      return (
-        replyMessage.messageID === this.heartbeatMessageID &&
-        replyMessage.metadata.internal === true &&
-        replyMessage.payload === payload
-      )
-    }, this.timeout)
+    } = connection.waitForReply(
+      (replyMessage: Message) => {
+        // wait for a reply with the same messageID and payload
+        return (
+          replyMessage.messageID === this.heartbeatMessageID &&
+          replyMessage.metadata.internal === true &&
+          replyMessage.payload === payload
+        )
+      },
+      this.timeout,
+      `Heartbeat messageID "${this.heartbeatMessageID}" with payload ${payload}`,
+    )
 
     const message = new Message(this.heartbeatMessageID, payload)
     message.metadata.internal = true
