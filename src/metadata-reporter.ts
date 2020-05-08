@@ -101,7 +101,6 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     return hr[0] * 1000 + hr[1] / 1000000
   }
 
-
   generateCancellableStartupTimeout = () => {
     this.startupProcedureTimeoutPromise = new Promise((resolve, reject) => {
       this.startupProcedureTimeoutResolution = resolve
@@ -141,7 +140,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
   raceStartupProcedureAgainstTimeout = (amount: number) => {
     let timeout: NodeJS.Timeout | null = null
-    
+
     const timeoutPromise = new Promise((res, rej) => {
       timeout = setTimeout(res, amount)
     })
@@ -163,7 +162,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
   }
 
   async onConnect() {
-    mark("heartbeat-startup")
+    mark('heartbeat-startup')
 
     // Reset all information
     this.inStartup = true
@@ -198,8 +197,10 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
       )
 
       // block for the requisite time, unless we're resolved quicker
-      await this.raceStartupProcedureAgainstTimeout(this.startupSequence[this.startupAttemptIndex])
-     
+      await this.raceStartupProcedureAgainstTimeout(
+        this.startupSequence[this.startupAttemptIndex],
+      )
+
       // If we've left startup mode by now, just break
       if (!this.inStartup) {
         measure(`heartbeat-attempt-${this.startupAttemptIndex}`)
@@ -229,7 +230,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
       // Wait for us to leave startup, either by timeout failure or by success
       mark(`heartbeat-waiting-on-timeout`)
-      await cancellableStartupTimeout 
+      await cancellableStartupTimeout
       mark(`heartbeat-waiting-on-timeout`)
     } else {
       dHeartbeats(`Left startup window while loop`)
