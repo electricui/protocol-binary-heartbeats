@@ -331,7 +331,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     // Write to the device, and record exactly when the packet goes out
     connection
       .write(message)
-      .then((res) => {
+      .then(res => {
         // If we're measuring from the exit, measure from now
         if (!this.measurePipeline) {
           // When this is called, the write has been flushed.
@@ -343,7 +343,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
           heartbeat.sentTime = sentTime
         }
       })
-      .catch((err) => {
+      .catch(err => {
         // On failure, mark this as failed
         heartbeat.failed = true
 
@@ -353,7 +353,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     // Wait for the reply then annotate the measurement with the new time
     // Return this promise in case the developer needs to know when the first heartbeat has been completed
     return waitForReply
-      .then((res) => {
+      .then(res => {
         const ackTime = this.getTime()
 
         dHeartbeats(`Received heartbeat #${payload}`)
@@ -366,7 +366,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
           this.leaveStartupMode(true)
         }
       })
-      .catch((err) => {
+      .catch(err => {
         // Heartbeat failure
         heartbeat.failed = true
 
@@ -376,13 +376,13 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
   report() {
     const heartbeatsSent = this.heartbeats.filter(
-      (heartbeat) => heartbeat.sentTime !== null,
+      heartbeat => heartbeat.sentTime !== null,
     )
     const heartbeatsSucceeded = heartbeatsSent.filter(
-      (heartbeat) => heartbeat.ackTime !== null && !heartbeat.failed,
+      heartbeat => heartbeat.ackTime !== null && !heartbeat.failed,
     )
     const heartbeatsFailed = heartbeatsSent.filter(
-      (heartbeat) => heartbeat.failed,
+      heartbeat => heartbeat.failed,
     )
 
     /**
@@ -428,7 +428,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
     // If the heartbeat has been sent but not received, the latency is the
     // current amount of time passed since the packet was set
-    const latencies = heartbeatsSucceeded.map((heartbeat) => {
+    const latencies = heartbeatsSucceeded.map(heartbeat => {
       /*
       if (!heartbeat.ackTime) {
         dHeartbeats(
