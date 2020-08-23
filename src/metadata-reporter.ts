@@ -1,4 +1,8 @@
-import { ConnectionMetadataReporter, Message } from '@electricui/core'
+import {
+  CancellationToken,
+  ConnectionMetadataReporter,
+  Message,
+} from '@electricui/core'
 import { MESSAGEIDS, TYPES } from '@electricui/protocol-binary-constants'
 import { average, standardDeviation } from './utils'
 import { mark, measure } from './perf'
@@ -44,10 +48,10 @@ class HeartbeatMeasurement {
   sentTime: number | null = null
   ackTime: number | null = null
   failed: boolean = false
-  cancelWaitForReply: () => void
+  cancellationToken: CancellationToken
 
-  constructor(cancelWaitForReply: () => void) {
-    this.cancelWaitForReply = cancelWaitForReply
+  constructor(cancellationToken: CancellationToken) {
+    this.cancellationToken = cancellationToken
   }
 }
 
@@ -283,22 +287,19 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     // we check it later it doesn't change underneath us.
     const payload = this.counter
 
+    // Our cancellation token
+    const cancellationToken = new CancellationToken()
+    cancellationToken.deadline(this.timeout)
+
     // Produce a wait for reply handler
-    const {
-      promise: waitForReply,
-      cancel: cancelWaitForReply,
-    } = connection.waitForReply(
-      (replyMessage: Message) => {
-        // wait for a reply with the same messageID and payload
-        return (
-          replyMessage.messageID === this.heartbeatMessageID &&
-          replyMessage.metadata.internal === true &&
-          replyMessage.payload === payload
-        )
-      },
-      this.timeout,
-      `Heartbeat messageID "${this.heartbeatMessageID}" with payload ${payload}`,
-    )
+    const waitForReply = connection.waitForReply((replyMessage: Message) => {
+      // wait for a reply with the same messageID and payload
+      return (
+        replyMessage.messageID === this.heartbeatMessageID &&
+        replyMessage.metadata.internal === true &&
+        replyMessage.payload === payload
+      )
+    }, cancellationToken)
 
     const message = new Message(this.heartbeatMessageID, payload)
     message.metadata.internal = true
@@ -306,7 +307,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     message.metadata.query = true
     message.metadata.ack = false
 
-    const heartbeat = new HeartbeatMeasurement(cancelWaitForReply)
+    const heartbeat = new HeartbeatMeasurement(cancellationToken)
 
     // Add this heartbeat to the list
     this.heartbeats.push(heartbeat)
@@ -330,7 +331,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
     // Write to the device, and record exactly when the packet goes out
     connection
-      .write(message)
+      .write(message, cancellationToken)
       .then(res => {
         // If we're measuring from the exit, measure from now
         if (!this.measurePipeline) {
@@ -369,8 +370,9 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
       .catch(err => {
         // Heartbeat failure
         heartbeat.failed = true
-
-        dHeartbeats(`Timing out heartbeat #${payload}`)
+        if (cancellationToken.caused(err)) {
+          dHeartbeats(`Timing out heartbeat #${payload}`)
+        }
       })
   }
 
