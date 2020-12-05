@@ -1,8 +1,4 @@
-import {
-  CancellationToken,
-  ConnectionMetadataReporter,
-  Message,
-} from '@electricui/core'
+import { CancellationToken, ConnectionMetadataReporter, Message } from '@electricui/core'
 import { MESSAGEIDS, TYPES } from '@electricui/protocol-binary-constants'
 import { average, standardDeviation } from './utils'
 import { mark, measure } from './perf'
@@ -118,9 +114,9 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
   leaveStartupMode = (success: boolean) => {
     dHeartbeats(
-      `${
-        success ? 'successfully' : 'unsuccessfully'
-      } leaving startup mode before the ${this.startupAttemptIndex}th attempt.`,
+      `${success ? 'successfully' : 'unsuccessfully'} leaving startup mode before the ${
+        this.startupAttemptIndex
+      }th attempt.`,
     )
 
     // leave startup
@@ -187,23 +183,16 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
     // If we're iterating through the startup procedure
     // While LESS THAN the COUNT => while the ID will be valid
-    while (
-      this.startupAttemptIndex < this.startupSequence.length &&
-      this.inStartup
-    ) {
+    while (this.startupAttemptIndex < this.startupSequence.length && this.inStartup) {
       mark(`heartbeat-attempt-${this.startupAttemptIndex}`)
       const waitTime = this.startupSequence[this.startupAttemptIndex]
 
       dHeartbeats(
-        `Waiting ${waitTime}ms for heartbeat ping #${this.startupAttemptToHeartbeatNumber(
-          this.startupAttemptIndex,
-        )}`,
+        `Waiting ${waitTime}ms for heartbeat ping #${this.startupAttemptToHeartbeatNumber(this.startupAttemptIndex)}`,
       )
 
       // block for the requisite time, unless we're resolved quicker
-      await this.raceStartupProcedureAgainstTimeout(
-        this.startupSequence[this.startupAttemptIndex],
-      )
+      await this.raceStartupProcedureAgainstTimeout(this.startupSequence[this.startupAttemptIndex])
 
       // If we've left startup mode by now, just break
       if (!this.inStartup) {
@@ -212,9 +201,9 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
       }
 
       dHeartbeats(
-        `Sending startup heartbeat ping #${this.startupAttemptToHeartbeatNumber(
-          this.startupAttemptIndex,
-        )} of ${this.startupSequence.length}`,
+        `Sending startup heartbeat ping #${this.startupAttemptToHeartbeatNumber(this.startupAttemptIndex)} of ${
+          this.startupSequence.length
+        }`,
       )
 
       // send off a ping
@@ -255,6 +244,8 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
   }
 
   async onDisconnect() {
+    dHeartbeats('Stopping heartbeats')
+
     // cleanup intervals
     if (this.interval) {
       clearInterval(this.interval)
@@ -377,15 +368,9 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
   }
 
   report() {
-    const heartbeatsSent = this.heartbeats.filter(
-      heartbeat => heartbeat.sentTime !== null,
-    )
-    const heartbeatsSucceeded = heartbeatsSent.filter(
-      heartbeat => heartbeat.ackTime !== null && !heartbeat.failed,
-    )
-    const heartbeatsFailed = heartbeatsSent.filter(
-      heartbeat => heartbeat.failed,
-    )
+    const heartbeatsSent = this.heartbeats.filter(heartbeat => heartbeat.sentTime !== null)
+    const heartbeatsSucceeded = heartbeatsSent.filter(heartbeat => heartbeat.ackTime !== null && !heartbeat.failed)
+    const heartbeatsFailed = heartbeatsSent.filter(heartbeat => heartbeat.failed)
 
     /**
      * Consecutive heartbeat count
@@ -399,18 +384,15 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
      * [+ + - +] = 0 // one heartbeat is not a consecutive heartbeat
      *
      */
-    let consecutiveSucessess = heartbeatsSent.reduce(
-      (accumulator, heartbeat) => {
-        // if this heartbeat succeeded, then we add 1 to the accumulator
-        if (heartbeat.ackTime !== null && !heartbeat.failed) {
-          return accumulator + 1
-        }
+    let consecutiveSucessess = heartbeatsSent.reduce((accumulator, heartbeat) => {
+      // if this heartbeat succeeded, then we add 1 to the accumulator
+      if (heartbeat.ackTime !== null && !heartbeat.failed) {
+        return accumulator + 1
+      }
 
-        // in any other case, we reset the counter to 0
-        return 0
-      },
-      0,
-    )
+      // in any other case, we reset the counter to 0
+      return 0
+    }, 0)
 
     // If there is only one heartbeat that succeeded, there have been 0 _consecutive_ heartbeats
     if (consecutiveSucessess === 1) {
@@ -420,9 +402,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     if (heartbeatsSucceeded.length === 0) {
       // No heartbeats have succeeded yet, so nothing to report on yet.
 
-      dHeartbeats(
-        'No heartbeats have succeeded yet. Bailing out of calculations',
-      )
+      dHeartbeats('No heartbeats have succeeded yet. Bailing out of calculations')
       return
     }
 
