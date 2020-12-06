@@ -97,8 +97,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
    * Returns high accuracy time in milliseconds
    */
   getTime() {
-    const hr = process.hrtime()
-    return hr[0] * 1000 + hr[1] / 1000000
+    return timing.now()
   }
 
   generateCancellableStartupTimeout = () => {
