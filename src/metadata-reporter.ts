@@ -3,6 +3,8 @@ import { MESSAGEIDS, TYPES } from '@electricui/protocol-binary-constants'
 import { average, standardDeviation } from './utils'
 import { mark, measure } from './perf'
 
+import { timing } from '@electricui/timing'
+
 const dHeartbeats = require('debug')('electricui-protocol-binary:heartbeats')
 
 interface HeartbeatConnectionMetadataReporterOptions {
@@ -73,7 +75,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     super()
     this.intervalDelay = options.interval || 500
     this.timeout = options.timeout || 2000
-    this.maxHeartbeats = options.maxHeartbeats || 20
+    this.maxHeartbeats = options.maxHeartbeats || Math.max((this.timeout * 5) / this.intervalDelay, 20)
     this.heartbeatMessageID = options.heartbeatMessageID || MESSAGEIDS.HEARTBEAT
 
     this.measurePipeline = options.measurePipeline || false
@@ -82,6 +84,16 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     this.report = this.report.bind(this)
     this.ping = this.ping.bind(this)
     this.getTime = this.getTime.bind(this)
+
+    // If intervalDelay < timeout / maxHeartbeats, we need to error
+
+    // maxHeartbeats = timeout / interval * 2
+
+    if (this.maxHeartbeats < this.timeout / this.intervalDelay) {
+      throw new Error(
+        "HeartbeatConnectionMetadataReporter maxHeartbeats isn't large enough to hold heartbeats long enough for them to fail",
+      )
+    }
 
     if (this.intervalDelay < 5) {
       throw new Error(
