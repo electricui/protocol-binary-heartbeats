@@ -1,6 +1,6 @@
 {
   "name": "@electricui/protocol-binary-heartbeats",
-  "version": "0.7.35-prerelease.18",
+  "version": "0.7.35-prerelease.20",
   "description": "ElectricUI Binary Protocol Heartbeat Reporter",
   "electricui-dev": true,
   "author": "Electric UI <support@electricui.com> (https://electricui.com)",
@@ -18,9 +18,9 @@
     "manifest.json"
   ],
   "dependencies": {
-    "@electricui/core": "^0.7.35-prerelease.18",
-    "@electricui/protocol-binary-constants": "^0.7.35-prerelease.16",
-    "@electricui/timing": "^0.7.35-prerelease.16",
+    "@electricui/core": "^0.7.35-prerelease.20",
+    "@electricui/protocol-binary-constants": "^0.7.35-prerelease.20",
+    "@electricui/timing": "^0.7.35-prerelease.20",
     "better-queue": "^3.8.10",
     "bluebird": "^3.5.3",
     "debug": "^4.3.1",
@@ -30,8 +30,8 @@
     "xstate": "^4.3.2"
   },
   "devDependencies": {
-    "@electricui/build-rollup-config": "^0.7.35-prerelease.16",
-    "@electricui/jest-config": "^0.7.35-prerelease.0",
+    "@electricui/build-rollup-config": "^0.7.35-prerelease.20",
+    "@electricui/jest-config": "^0.7.35-prerelease.20",
     "@types/bluebird": "^3.5.25",
     "@types/chai": "^4.1.7",
     "@types/chai-subset": "^1.3.2",
