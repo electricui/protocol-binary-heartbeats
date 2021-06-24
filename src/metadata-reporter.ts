@@ -53,6 +53,14 @@ class HeartbeatMeasurement {
   }
 }
 
+export const AUDIT_LOG_HEARTBEAT_CONNECTION_METADATA_REPORTER = 'heartbeat-metadata-reporter'
+
+export enum HEARTBEAT_CONNECTION_AUDIT_EVENTS {
+  STARTUP_MODE = 'startup-mode',
+  STARTUP_ATTEMPT = 'startup-attempt',
+  CONSECUTIVE_RUN = 'consecutive-run',
+}
+
 export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataReporter {
   getIdentifier() {
     return 'heartbeat-metadata-reporter' as const
@@ -73,6 +81,9 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
   startupProcedureTimeoutPromise: Promise<void> | null = null
   startupProcedureTimeoutResolution: (() => void) | null = null
   startupProcedureTimeoutHandler: NodeJS.Timeout | null = null
+
+  // For marking the audit log
+  private consecutiveHeartbeatBeginningTime: number | null = null
 
   constructor(options: HeartbeatConnectionMetadataReporterOptions) {
     super()
