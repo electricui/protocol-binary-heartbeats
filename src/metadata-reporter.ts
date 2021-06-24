@@ -54,7 +54,10 @@ class HeartbeatMeasurement {
 }
 
 export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataReporter {
-  name = 'heartbeat-metadata-reporter' as const
+  getIdentifier() {
+    return 'heartbeat-metadata-reporter' as const
+  }
+
   metadataKeys = ['latency', 'packetLoss', 'jitter', 'consecutiveHeartbeats']
   intervalDelay: number
   timeout: number
@@ -173,8 +176,6 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
   }
 
   async onConnect() {
-    mark('heartbeat-startup')
-
     // Reset all information
     this.inStartup = true
     this.startupAttemptIndex = 0
@@ -196,6 +197,7 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     // While LESS THAN the COUNT => while the ID will be valid
     while (this.startupAttemptIndex < this.startupSequence.length && this.inStartup) {
       mark(`heartbeat-attempt-${this.startupAttemptIndex}`)
+
       const waitTime = this.startupSequence[this.startupAttemptIndex]
 
       dHeartbeats(
@@ -251,7 +253,6 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
     this.report()
 
     dHeartbeats(`Connection is probably in CONNECTED state`)
-    measure('heartbeat-startup')
   }
 
   async onDisconnect() {
@@ -368,12 +369,27 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
         if (this.inStartup) {
           this.leaveStartupMode(true)
         }
+
+        // If we don't have a beginning of a good run, it's now
+        if (!this.consecutiveHeartbeatBeginningTime) {
+          this.consecutiveHeartbeatBeginningTime = heartbeat.sentTime
+        }
       })
       .catch(err => {
         // Heartbeat failure
         heartbeat.failed = true
         if (cancellationToken.caused(err)) {
           dHeartbeats(`Timing out heartbeat #${payload}`)
+
+          // If this is the first failure, establish
+          if (this.consecutiveHeartbeatBeginningTime) {
+            const start = this.consecutiveHeartbeatBeginningTime
+            const end = this.getTime()
+
+            // Insert the duration of good heart beats
+
+            this.consecutiveHeartbeatBeginningTime = null
+          }
         }
       })
   }
