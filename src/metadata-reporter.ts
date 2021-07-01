@@ -1,4 +1,5 @@
-import { CancellationToken, ConnectionMetadataReporter, Message } from '@electricui/core'
+import { ConnectionMetadataReporter, Message } from '@electricui/core'
+import { CancellationToken } from '@electricui/async-utilities'
 import { MESSAGEIDS, TYPES } from '@electricui/protocol-binary-constants'
 import { average, standardDeviation } from './utils'
 import { mark, measure } from './perf'
