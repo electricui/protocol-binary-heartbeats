@@ -1,6 +1,6 @@
 {
   "name": "@electricui/protocol-binary-heartbeats",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "ElectricUI Binary Protocol Heartbeat Reporter",
   "electricui-dev": true,
   "author": "Electric UI <support@electricui.com> (https://electricui.com)",
