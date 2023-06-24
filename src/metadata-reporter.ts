@@ -1,7 +1,7 @@
 import { ConnectionMetadataReporter, Message } from '@electricui/core'
 import { CancellationToken } from '@electricui/async-utilities'
 import { MESSAGEIDS, TYPES } from '@electricui/protocol-binary-constants'
-import { average, standardDeviation } from './utils'
+import { mean, averageAbsoluteDeviation } from './utils'
 import { mark, measure } from './perf'
 
 import { timing } from '@electricui/timing'
@@ -464,14 +464,14 @@ export class HeartbeatConnectionMetadataReporter extends ConnectionMetadataRepor
 
     const connection = this.connectionInterface!.connection!
 
-    const latency = average(latencies)
+    const latency = mean(latencies)
     const packetLoss = heartbeatsFailed.length / heartbeatsSent.length
-    const jitter = standardDeviation(latencies)
+    const jitter = averageAbsoluteDeviation(latencies)
 
     dHeartbeats(`Heartbeats sent: ${heartbeatsSent.length}`)
     dHeartbeats(`Heartbeat latency: ${latency}`)
     dHeartbeats(`Heartbeat packetLoss: ${packetLoss}`)
-    dHeartbeats(`Heartbeat jitter: ${jitter}`)
+    dHeartbeats(`Heartbeat jitter (AAD): ${jitter}`)
     dHeartbeats(`Consecutive heartbeats: ${consecutiveSucessess}`)
 
     connection.reportConnectionMetadata('latency', latency)

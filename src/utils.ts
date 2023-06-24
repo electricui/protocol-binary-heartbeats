@@ -1,8 +1,17 @@
 /**
  * Returns the average of a list of numbers
  */
-export function average(values: Array<number>) {
-  const sum = values.reduce((sum, value) => sum + value, 0)
+export function mean(values: Array<number>) {
+  if (values.length === 0) {
+    return 0
+  }
+
+  let sum = 0
+
+  for (let index = 0; index < values.length; index++) {
+    const value = values[index];
+    sum += value
+  }
 
   return sum / values.length
 }
@@ -10,10 +19,18 @@ export function average(values: Array<number>) {
 /**
  * Returns the standard deviation of a list of numbers
  */
-export function standardDeviation(values: Array<number>) {
-  const avg = average(values)
+export function averageAbsoluteDeviation(values: Array<number>) {
+  if (values.length === 0) {
+    return 0
+  }
 
-  const squareDiffs = values.map(value => (value - avg) ** 2)
+  const avg = mean(values)
 
-  return Math.sqrt(average(squareDiffs))
+  let sum = 0
+
+  for (let index = 0; index < values.length; index++) {
+    sum += Math.abs(avg - values[index])
+  }
+
+  return sum / values.length
 }
